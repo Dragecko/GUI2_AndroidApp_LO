@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ProNote_2</string>
+    <string name="app_name">ProNote 2</string>
     <string name="bottom_navigation_home">Home</string>
     <string name="bottom_navigation_profile">Profile</string>
 </resources>
