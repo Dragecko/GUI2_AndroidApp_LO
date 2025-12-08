@@ -1,6 +1,8 @@
 package com.example.pronote_2.ui
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.example.pronote_2.ui.screen.MainScreen
@@ -23,9 +25,9 @@ object EditingGrade
 object Parameters
 
 @Composable
-fun ProNote2NavHost() {
-    val navController = rememberNavController()
-
+fun ProNote2NavHost(
+    navController: NavHostController
+) {
     NavHost(navController, startDestination = Main) {
         composable<Main> {
             MainScreen(
