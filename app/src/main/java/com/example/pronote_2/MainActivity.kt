@@ -117,12 +117,12 @@ fun ProNote2BottomAppBar(
                 imageVector = Icons.Filled.Home, contentDescription = null
             )
         }, label = { Text(text = "Home") })
-        NavigationBarItem(selected = true, onClick = { onAddingGradeClick() }, icon = {
+        NavigationBarItem(selected = false, onClick = { onAddingGradeClick() }, icon = {
             Icon(
                 imageVector = Icons.Filled.Add, contentDescription = null
             )
         }, label = { Text(text = "Ajouter une note") })
-        NavigationBarItem(selected = true, onClick = { onParametersClick() }, icon = {
+        NavigationBarItem(selected = false, onClick = { onParametersClick() }, icon = {
             Icon(
                 imageVector = Icons.Filled.Settings, contentDescription = null
             )

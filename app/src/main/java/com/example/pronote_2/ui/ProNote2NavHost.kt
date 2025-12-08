@@ -43,7 +43,7 @@ fun ProNote2NavHost(
 
         composable<AddingGrade> {
             AddingGradeScreen(
-
+                
             )
         }
 
