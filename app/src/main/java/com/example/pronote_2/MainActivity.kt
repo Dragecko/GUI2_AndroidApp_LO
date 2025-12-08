@@ -1,9 +1,11 @@
 package com.example.pronote_2
 
 import android.os.Bundle
+import android.widget.ImageButton
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -16,12 +18,17 @@ import com.example.pronote_2.ui.theme.ProNote_2Theme
 
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 
 class MainActivity : ComponentActivity() {
@@ -32,16 +39,14 @@ class MainActivity : ComponentActivity() {
             ProNote_2Theme {
                 Scaffold(topBar = {
                     ProNote2TopAppBar(name = "ProNote 2")
+                }, bottomBar = {
+                    ProNote2BottomAppBar()
                 }) { innerPadding ->
                     Column(
-
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding)
-                    ) {
-                        Greeting(
-                            name = "ProNote 2",
-                        )}
+                    ) {}
                 }
             }
         }
@@ -71,19 +76,29 @@ fun ProNote2TopAppBar(name: String) {
         ),
         title = {
             Text(
-                name,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                name, maxLines = 1, overflow = TextOverflow.Ellipsis
             )
         },
         actions = {
             IconButton(onClick = { /* do something */ }) {
-                Icon(
-                    imageVector = Icons.Filled.Menu,
-                    contentDescription = "Localized description"
-                )
+                (Image(
+                    painter = painterResource(R.drawable.cat_looking_good),
+                    contentDescription = null
+                ))
             }
         },
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProNote2BottomAppBar() {
+    NavigationBar(windowInsets = NavigationBarDefaults.windowInsets) {
+        NavigationBarItem(selected = true, onClick = { /*  NE FAIS RIEN  */ }, icon = {
+            Icon(
+                imageVector = Icons.Filled.Home, contentDescription = null
+            )
+        }, label = { Text(text = "Home") })
+    }
 }
 
