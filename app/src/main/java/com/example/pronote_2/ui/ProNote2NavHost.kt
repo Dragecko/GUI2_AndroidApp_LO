@@ -10,7 +10,6 @@ import kotlinx.serialization.Serializable
 import androidx.navigation.compose.composable
 import com.example.pronote_2.ui.screen.AddingGradeScreen
 import com.example.pronote_2.ui.screen.EditingGradeScreen
-import com.example.pronote_2.ui.screen.ParametersScreen
 
 @Serializable
 object Main
@@ -48,9 +47,7 @@ fun ProNote2NavHost(
         }
 
         composable<Parameters> {
-            ParametersScreen(
-
-            )
+            EditingGradeScreen()
         }
     }
 }
