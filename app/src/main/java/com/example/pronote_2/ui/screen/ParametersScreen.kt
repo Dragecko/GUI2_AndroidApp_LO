@@ -3,6 +3,8 @@ package com.example.pronote_2.ui.screen
 import androidx.compose.runtime.Composable
 import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DateRange
@@ -53,10 +55,13 @@ fun ParametersScreen(){
     }
 
 
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
-            .padding(16.dp)
-            .fillMaxSize(),
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(16.dp),
         verticalArrangement = Arrangement.Top
     ) {
         Spacer(Modifier.height(16.dp))
@@ -120,6 +125,9 @@ fun ParametersScreen(){
             onCancel = { /* TODO */ },
             onSave = { /* TODO */ }
         )
+
+        // Espace supplémentaire en bas pour garantir la visibilité des boutons
+        Spacer(Modifier.height(32.dp))
     }
 }
 
