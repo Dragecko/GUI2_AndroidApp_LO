@@ -1,3 +1,4 @@
+package com.example.pronote_2.ui.screen
 
 import androidx.compose.runtime.Composable
 import android.app.DatePickerDialog
@@ -14,12 +15,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.pronote_2.data.ApiService
+import com.example.pronote_2.data.Grade
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddingGradeScreen(){
+fun AddingGradeScreen(
+    onGradeAdded: () -> Unit = {}
+){
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // --- Data "mock" a remplacer après par l'api mongoDaBé)
     val courses = remember { listOf("Français", "Mathématique", "GUI1") }
@@ -27,17 +36,22 @@ fun AddingGradeScreen(){
 
     // --- UI State
     var selectedCourse by remember { mutableStateOf("") }
-    var title by remember { mutableStateOf("tests") }
+    var title by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("4.0") }
     var weight by remember { mutableStateOf("1.0") }
-    var selectedSemester1 by remember { mutableStateOf("Aucun semestre") }
-    var selectedSemester2 by remember { mutableStateOf("Aucun semestre") }
-    var dateText by remember { mutableStateOf("24 / 11 / 2025") }
+    var selectedSemester by remember { mutableStateOf("Aucun semestre") }
+    var dateText by remember { mutableStateOf(formatDate(
+        Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+        Calendar.getInstance().get(Calendar.MONTH) + 1,
+        Calendar.getInstance().get(Calendar.YEAR)
+    )) }
 
     // --- Menu
     var courseMenuExpanded by remember { mutableStateOf(false) }
-    var semester1MenuExpanded by remember { mutableStateOf(false) }
-    var semester2MenuExpanded by remember { mutableStateOf(false) }
+    var semesterMenuExpanded by remember { mutableStateOf(false) }
+    
+    // --- API State
+    var isLoading by remember { mutableStateOf(false) }
 
     // DatePicker
     val openDatePicker = remember(context) {
@@ -90,14 +104,14 @@ fun AddingGradeScreen(){
 
         DropdownField(
             label = "Semestre (optionnel)",
-            value = selectedSemester1,
+            value = selectedSemester,
             placeholder = null,
-            expanded = semester1MenuExpanded,
-            onExpandedChange = { semester1MenuExpanded = !semester1MenuExpanded },
+            expanded = semesterMenuExpanded,
+            onExpandedChange = { semesterMenuExpanded = !semesterMenuExpanded },
             options = semesters,
             onSelect = { sem ->
-                selectedSemester1 = sem
-                semester1MenuExpanded = false
+                selectedSemester = sem
+                semesterMenuExpanded = false
             }
         )
 
@@ -125,28 +139,59 @@ fun AddingGradeScreen(){
             onOpenPicker = openDatePicker
         )
 
-        Spacer(Modifier.height(16.dp))
-
-        DropdownField(
-            label = "Semestre (optionnel)",
-            value = selectedSemester2,
-            placeholder = null,
-            expanded = semester2MenuExpanded,
-            onExpandedChange = { semester2MenuExpanded = !semester2MenuExpanded },
-            options = semesters,
-            onSelect = { sem ->
-                selectedSemester2 = sem
-                semester2MenuExpanded = false
-            }
-        )
-
         Spacer(Modifier.height(24.dp))
 
         AddButton(
-            onAdd = { /* TODO: Implémenter l'ajout de la note */ }
-        )
+            onAdd = {
+                if (selectedCourse.isEmpty()) {
+                    return@AddButton
+                }
+                if (title.isEmpty()) {
+                    return@AddButton
+                }
+                
+                isLoading = true
+                
+                scope.launch {
+                    try {
+                        val noteValue = note.toDoubleOrNull() ?: 0.0
+                        val weightValue = weight.toDoubleOrNull() ?: 1.0
+                        val semester = if (selectedSemester != "Aucun semestre") selectedSemester else null
 
-        // Espace supplementaire en bas pour une meilleur visibilité du boutton
+                        val isoDate = convertDateToISO(dateText)
+                        
+                        val grade = Grade(
+                            course = selectedCourse,
+                            title = title,
+                            note = noteValue,
+                            weight = weightValue,
+                            semester = semester,
+                            date = isoDate
+                        )
+                        
+                        val result = ApiService.createGrade(grade)
+                        result.onSuccess {
+                            // Réinitialiser les champs
+                            selectedCourse = ""
+                            title = ""
+                            note = "4.0"
+                            weight = "1.0"
+                            selectedSemester = "Aucun semestre"
+                            dateText = formatDate(
+                                Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                                Calendar.getInstance().get(Calendar.MONTH) + 1,
+                                Calendar.getInstance().get(Calendar.YEAR)
+                            )
+                            onGradeAdded()
+                        }
+                    } catch (e: Exception) {
+                    } finally {
+                        isLoading = false
+                    }
+                }
+            },
+            isLoading = isLoading
+        )
         Spacer(Modifier.height(32.dp))
     }
 }
@@ -262,7 +307,7 @@ private fun DateField(
 
     OutlinedTextField(
         value = dateText,
-        onValueChange = { /* date affichée seulement */ },
+        onValueChange = { },
         modifier = Modifier.fillMaxWidth(),
         readOnly = true,
         trailingIcon = {
@@ -275,15 +320,26 @@ private fun DateField(
 
 @Composable
 private fun AddButton(
-    onAdd: () -> Unit
+    onAdd: () -> Unit,
+    isLoading: Boolean = false
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Button(onClick = onAdd) {
-            Text("Ajouter")
+        Button(
+            onClick = onAdd,
+            enabled = !isLoading
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(if (isLoading) "Ajout..." else "Ajouter")
         }
     }
 }
@@ -292,4 +348,26 @@ private fun formatDate(day: Int, month: Int, year: Int): String {
     val d = day.toString().padStart(2, '0')
     val m = month.toString().padStart(2, '0')
     return "$d / $m / $year"
+}
+
+private fun convertDateToISO(dateText: String): String {
+    return try {
+        // Format d'entrée: "dd / mm / yyyy"
+        val parts = dateText.split(" / ")
+        if (parts.size == 3) {
+            val day = parts[0].toInt()
+            val month = parts[1].toInt()
+            val year = parts[2].toInt()
+            val calendar = Calendar.getInstance()
+            calendar.set(year, month - 1, day)
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+            sdf.format(calendar.time)
+        } else {
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+            sdf.format(Calendar.getInstance().time)
+        }
+    } catch (e: Exception) {
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        sdf.format(Calendar.getInstance().time)
+    }
 }

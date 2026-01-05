@@ -15,16 +15,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.pronote_2.data.ApiService
+import com.example.pronote_2.data.Grade
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditingGradeScreen(){
+fun EditingGradeScreen(
+    onGradeUpdated: () -> Unit = {}
+){
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    // --- Data "mock" a remplacer après par l'api mongoDaBé)
-    val tests = remember { listOf("Test 1", "Test 2") }
+    // --- Data
     val semesters = remember { listOf("Aucun", "Semestre 1", "Semestre 2") }
+    
+    // --- API State
+    var grades by remember { mutableStateOf<List<Grade>>(emptyList()) }
+    var selectedGradeId by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var isLoadingGrades by remember { mutableStateOf(false) }
 
     // --- UI State
     var selectedTest by remember { mutableStateOf("") }
@@ -37,6 +50,32 @@ fun EditingGradeScreen(){
     // --- Menu
     var testMenuExpanded by remember { mutableStateOf(false) }
     var semesterMenuExpanded by remember { mutableStateOf(false) }
+    
+    // Charger les notes au démarrage
+    LaunchedEffect(Unit) {
+        isLoadingGrades = true
+        ApiService.getAllGrades().onSuccess {
+            grades = it
+            isLoadingGrades = false
+        }.onFailure {
+            isLoadingGrades = false
+        }
+    }
+    
+    // Mettre à jour les champs quand une note est sélectionnée
+    LaunchedEffect(selectedGradeId) {
+        selectedGradeId?.let { id ->
+            grades.find { it._id == id }?.let { grade ->
+                selectedTest = grade.course
+                title = grade.title
+                note = grade.note.toString()
+                weight = grade.weight.toString()
+                selectedSemester = grade.semester ?: "Aucun"
+                // Convertir la date ISO en format affichage
+                dateText = convertISOToDate(grade.date)
+            }
+        }
+    }
 
     // DatePicker
     val openDatePicker = remember(context) {
@@ -65,18 +104,38 @@ fun EditingGradeScreen(){
     ) {
         Spacer(Modifier.height(16.dp))
 
-        DropdownField(
-            label = "Sélectionner le test",
+        Text(
+            text = "Modifier une note",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+        
+        // Dropdown (selectionner une note)
+        if (isLoadingGrades) {
+            CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+        } else {
+            GradeSelectionDropdown(
+                label = "Sélectionner une note a modifier",
+                grades = grades,
+                selectedGradeId = selectedGradeId,
+                onGradeSelected = { id ->
+                    selectedGradeId = id
+                }
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Champ cours (lecture seule, basé sur la note sélectionnée)
+        Text("Cours", fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        OutlinedTextField(
             value = selectedTest,
-            placeholder = "Sélectionner…",
-            expanded = testMenuExpanded,
-            onExpandedChange = { testMenuExpanded = !testMenuExpanded },
-            options = tests,
-            onSelect = { option ->
-                selectedTest = option
-                title = option
-                testMenuExpanded = false
-            }
+            onValueChange = {},
+            readOnly = true,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = selectedGradeId != null
         )
 
         Spacer(Modifier.height(16.dp))
@@ -121,11 +180,57 @@ fun EditingGradeScreen(){
         Spacer(Modifier.height(24.dp))
 
         ActionsRow(
-            onCancel = { /* TODO */ },
-            onSave = { /* TODO */ }
+            onCancel = {
+                selectedGradeId = null
+                selectedTest = ""
+                title = ""
+                note = "4.0"
+                weight = "1.0"
+                selectedSemester = "Aucun"
+            },
+            onSave = {
+                if (selectedGradeId == null) {
+                    return@ActionsRow
+                }
+                if (title.isEmpty()) {
+                    return@ActionsRow
+                }
+                
+                isLoading = true
+                
+                scope.launch {
+                    try {
+                        val noteValue = note.toDoubleOrNull() ?: 0.0
+                        val weightValue = weight.toDoubleOrNull() ?: 1.0
+                        val semester = if (selectedSemester != "Aucun") selectedSemester else null
+                        val isoDate = convertDateToISO(dateText)
+                        
+                        val grade = Grade(
+                            course = selectedTest,
+                            title = title,
+                            note = noteValue,
+                            weight = weightValue,
+                            semester = semester,
+                            date = isoDate
+                        )
+                        
+                        val result = ApiService.updateGrade(selectedGradeId!!, grade)
+                        result.onSuccess {
+                            // Recharger la liste des notes
+                            ApiService.getAllGrades().onSuccess { updatedGrades ->
+                                grades = updatedGrades
+                            }
+                            onGradeUpdated()
+                        }
+                    } catch (e: Exception) {
+                    } finally {
+                        isLoading = false
+                    }
+                }
+            },
+            isLoading = isLoading,
+            enabled = selectedGradeId != null
         )
-
-        // Espace supplémentaire en bas pour garantir la visibilité des boutons
         Spacer(Modifier.height(32.dp))
     }
 }
@@ -250,19 +355,92 @@ private fun DateField(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GradeSelectionDropdown(
+    label: String,
+    grades: List<Grade>,
+    selectedGradeId: String?,
+    onGradeSelected: (String?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    Text(text = label, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(4.dp))
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = grades.find { it._id == selectedGradeId }?.let { "${it.course} - ${it.title}" } ?: "",
+            onValueChange = {},
+            readOnly = true,
+            placeholder = { Text("Sélectionner une note...") },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            }
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            if (grades.isEmpty()) {
+                DropdownMenuItem(
+                    text = { Text("Aucune note disponible") },
+                    onClick = { expanded = false }
+                )
+            } else {
+                grades.forEach { grade ->
+                    DropdownMenuItem(
+                        text = { Text("${grade.course} - ${grade.title} (${grade.note})") },
+                        onClick = {
+                            onGradeSelected(grade._id)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun ActionsRow(
     onCancel: () -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    isLoading: Boolean = false,
+    enabled: Boolean = true
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        OutlinedButton(onClick = onCancel) { Text("Annuler") }
+        OutlinedButton(
+            onClick = onCancel,
+            enabled = !isLoading && enabled
+        ) {
+            Text("Annuler")
+        }
         Spacer(Modifier.width(8.dp))
-        Button(onClick = onSave) { Text("Modifier") }
+        Button(
+            onClick = onSave,
+            enabled = !isLoading && enabled
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(if (isLoading) "Modification..." else "Modifier")
+        }
     }
 }
 
@@ -270,4 +448,53 @@ private fun formatDate(day: Int, month: Int, year: Int): String {
     val d = day.toString().padStart(2, '0')
     val m = month.toString().padStart(2, '0')
     return "$d / $m / $year"
+}
+
+private fun convertDateToISO(dateText: String): String {
+    return try {
+        val parts = dateText.split(" / ")
+        if (parts.size == 3) {
+            val day = parts[0].toInt()
+            val month = parts[1].toInt()
+            val year = parts[2].toInt()
+            val calendar = Calendar.getInstance()
+            calendar.set(year, month - 1, day)
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+            sdf.format(calendar.time)
+        } else {
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+            sdf.format(Calendar.getInstance().time)
+        }
+    } catch (e: Exception) {
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        sdf.format(Calendar.getInstance().time)
+    }
+}
+
+private fun convertISOToDate(isoDate: String): String {
+    return try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        val date = sdf.parse(isoDate)
+        if (date != null) {
+            val calendar = Calendar.getInstance()
+            calendar.time = date
+            formatDate(
+                calendar.get(Calendar.DAY_OF_MONTH),
+                calendar.get(Calendar.MONTH) + 1,
+                calendar.get(Calendar.YEAR)
+            )
+        } else {
+            formatDate(
+                Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+                Calendar.getInstance().get(Calendar.MONTH) + 1,
+                Calendar.getInstance().get(Calendar.YEAR)
+            )
+        }
+    } catch (e: Exception) {
+        formatDate(
+            Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
+            Calendar.getInstance().get(Calendar.MONTH) + 1,
+            Calendar.getInstance().get(Calendar.YEAR)
+        )
+    }
 }
