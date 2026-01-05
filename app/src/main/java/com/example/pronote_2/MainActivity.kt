@@ -30,8 +30,11 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.pronote_2.ui.AddingGrade
 import com.example.pronote_2.ui.Main
@@ -49,6 +52,7 @@ class MainActivity : ComponentActivity() {
                     ProNote2TopAppBar(name = "ProNote 2")
                 }, bottomBar = {
                     ProNote2BottomAppBar(
+                        navController = navController,
                         onMainClick = { navController.navigate(Main) },
                         onAddingGradeClick = { navController.navigate(AddingGrade) },
                         onParametersClick = { navController.navigate(Parameters) })
@@ -107,22 +111,26 @@ fun ProNote2TopAppBar(name: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProNote2BottomAppBar(
+    navController: NavHostController,
     onMainClick: () -> Unit,
     onAddingGradeClick: () -> Unit,
     onParametersClick: () -> Unit,
 ) {
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = currentBackStackEntry?.destination
+
     NavigationBar(windowInsets = NavigationBarDefaults.windowInsets) {
-        NavigationBarItem(selected = true, onClick = { onMainClick() }, icon = {
+        NavigationBarItem(selected = currentDestination?.route == Main::class.qualifiedName, onClick = { onMainClick() }, icon = {
             Icon(
                 imageVector = Icons.Filled.Home, contentDescription = null
             )
         }, label = { Text(text = "Home") })
-        NavigationBarItem(selected = false, onClick = { onAddingGradeClick() }, icon = {
+        NavigationBarItem(selected = currentDestination?.route == AddingGrade::class.qualifiedName, onClick = { onAddingGradeClick() }, icon = {
             Icon(
                 imageVector = Icons.Filled.Add, contentDescription = null
             )
         }, label = { Text(text = "Ajouter une note") })
-        NavigationBarItem(selected = false, onClick = { onParametersClick() }, icon = {
+        NavigationBarItem(selected = currentDestination?.route == Parameters::class.qualifiedName, onClick = { onParametersClick() }, icon = {
             Icon(
                 imageVector = Icons.Filled.Settings, contentDescription = null
             )
