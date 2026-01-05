@@ -51,7 +51,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.rememberNavController
 import com.example.pronote_2.R
+import com.example.pronote_2.ui.AddingGrade
+import com.example.pronote_2.ui.EditingGrade
 import org.w3c.dom.Text
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -148,6 +151,7 @@ fun Block(grade: Float, modifier: Modifier = Modifier, module: String?){
 
 @Composable
 fun AverageGradeList(){
+
     Row(
         horizontalArrangement = Arrangement.Absolute.Right,
         modifier = Modifier
@@ -195,6 +199,7 @@ fun TitleSection(title: String){
 
 @Composable
 fun MinimalDropdownMenu() {
+    val navController = rememberNavController()
     var expanded by remember { mutableStateOf(false) }
 
     Box {
@@ -208,7 +213,7 @@ fun MinimalDropdownMenu() {
         ) {
             DropdownMenuItem(
                 text = { Text("Modifier") },
-                onClick = { /* Do something... */ }
+                onClick = { navController.navigate(EditingGrade) }
             )
             DropdownMenuItem(
                 text = { Text("Supprimer") },
