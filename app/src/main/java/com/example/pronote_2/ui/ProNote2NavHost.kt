@@ -31,7 +31,7 @@ fun ProNote2NavHost(
     NavHost(navController, startDestination = Main) {
         composable<Main> {
             MainScreen(
-
+                onEditGradeClick = { navController.navigate(EditingGrade) }
             )
         }
 

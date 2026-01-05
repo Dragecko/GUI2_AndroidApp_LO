@@ -471,7 +471,7 @@ private fun convertDateToISO(dateText: String): String {
     }
 }
 
-private fun convertISOToDate(isoDate: String): String {
+fun convertISOToDate(isoDate: String): String {
     return try {
         val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
         val date = sdf.parse(isoDate)

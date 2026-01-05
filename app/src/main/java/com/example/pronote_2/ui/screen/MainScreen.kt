@@ -1,7 +1,9 @@
 package com.example.pronote_2.ui.screen
 
+import android.os.Build
 import android.widget.Toast
 import androidx.annotation.DrawableRes
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,30 +38,39 @@ import androidx.compose.material3.carousel.CarouselState
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.pronote_2.R
+import com.example.pronote_2.data.ApiService
+import com.example.pronote_2.data.Grade
 import com.example.pronote_2.ui.AddingGrade
 import com.example.pronote_2.ui.EditingGrade
+import com.example.pronote_2.ui.Main
+import com.example.pronote_2.ui.ProNote2NavHost
 import org.w3c.dom.Text
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(){
+fun MainScreen(onEditGradeClick: () -> Unit){
     data class CarouselItem(
         val id: Int,
         val grade: Float,
@@ -76,7 +87,38 @@ fun MainScreen(){
         )
     }
 
-    var nbrGrades = 8
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // --- API State
+    var grades by remember { mutableStateOf<List<Grade>>(emptyList()) }
+    var selectedGradeId by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var isLoadingGrades by remember { mutableStateOf(false) }
+
+    // --- UI State
+    var selectedTest by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("4.0") }
+    var weight by remember { mutableStateOf("1.0") }
+    var selectedSemester by remember { mutableStateOf("Aucun") }
+    var dateText by remember { mutableStateOf("24 / 11 / 2025") }
+
+    // --- Menu
+    var testMenuExpanded by remember { mutableStateOf(false) }
+    var semesterMenuExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        isLoadingGrades = true
+        ApiService.getAllGrades().onSuccess {
+            grades = it
+            isLoadingGrades = false
+        }.onFailure {
+            isLoadingGrades = false
+        }
+    }
+
+
 
     Column(){
         HorizontalMultiBrowseCarousel(
@@ -95,7 +137,7 @@ fun MainScreen(){
 
         TitleSection("Moyennes")
 
-        SimpleLazyColumn()
+        SimpleLazyColumn(onEditGradeClick = onEditGradeClick, ArrayList(grades))
 
     }
 }
@@ -149,8 +191,9 @@ fun Block(grade: Float, modifier: Modifier = Modifier, module: String?){
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
-fun AverageGradeList(){
+fun AverageGradeList(onEditGradeClick: () -> Unit, copyOfGrades : ArrayList<Grade>){
 
     Row(
         horizontalArrangement = Arrangement.Absolute.Right,
@@ -166,24 +209,27 @@ fun AverageGradeList(){
                     .padding(vertical = 10.dp)
                     .padding(end = 25.dp)
             ) {
-                Block(5f, modifier = Modifier.size(75.dp), null)
+                Block(copyOfGrades.first().note.toFloat(), modifier = Modifier.size(75.dp), null)
                 Column(
                     modifier = Modifier
                         .padding(end = 10.dp)
                 ) {
-                    Text("Anglais")
-                    Text("Dernière note enregistrée : 5")
-                    Text("Ee 17.11.2025")
+                    Text(copyOfGrades.first().title)
+                    Text("Dernière note enregistrée : " + copyOfGrades.first().note)
+                    Text("Le " + convertISOToDate(copyOfGrades.first().date))
                 }
             }
 
+            copyOfGrades.removeFirst()
 
-            MinimalDropdownMenu()
+            MinimalDropdownMenu(onEditGradeClick =  onEditGradeClick)
         }
 
     }
 
     HorizontalDivider(thickness = 1.dp, modifier = Modifier.padding(horizontal = 10.dp))
+
+
 }
 
 @Composable
@@ -198,8 +244,9 @@ fun TitleSection(title: String){
 }
 
 @Composable
-fun MinimalDropdownMenu() {
-    val navController = rememberNavController()
+fun MinimalDropdownMenu(
+    onEditGradeClick: () -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
 
     Box {
@@ -213,7 +260,7 @@ fun MinimalDropdownMenu() {
         ) {
             DropdownMenuItem(
                 text = { Text("Modifier") },
-                onClick = { navController.navigate(EditingGrade) }
+                onClick = { onEditGradeClick() }
             )
             DropdownMenuItem(
                 text = { Text("Supprimer") },
@@ -223,13 +270,16 @@ fun MinimalDropdownMenu() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
-fun SimpleLazyColumn()
+fun SimpleLazyColumn(onEditGradeClick : () -> Unit, grades: ArrayList<Grade> )
 {
+    var copyOfGrades = grades
+
     LazyColumn() {
-        items(8)
+        items(grades.count())
         {
-            AverageGradeList()
+            AverageGradeList(onEditGradeClick = onEditGradeClick, copyOfGrades)
         }
     }
 }
