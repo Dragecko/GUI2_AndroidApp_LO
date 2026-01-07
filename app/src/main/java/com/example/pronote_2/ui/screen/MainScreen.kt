@@ -74,18 +74,21 @@ fun MainScreen(onEditGradeClick: () -> Unit){
     data class CarouselItem(
         val id: Int,
         val grade: Float,
-        val contentDescription: String
+        val title: String,
     )
 
-    val items = remember {
-        listOf(
+    /*
+    val items =
+        mutableListOf(
             CarouselItem(1, 5.0f, "donut"),
             CarouselItem(1, 3.0f,"donut"),
             CarouselItem(1, 4.5f,"donut"),
             CarouselItem(1, 6.0f,"donut"),
             CarouselItem(1, 2.5f,"donut"),
         )
-    }
+
+     */
+
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -117,8 +120,42 @@ fun MainScreen(onEditGradeClick: () -> Unit){
             isLoadingGrades = false
         }
     }
+    
+    var copyGrades = ArrayList(grades).toMutableList()
+    val copyGradesIterator = ArrayList(grades).toMutableList()
+    val copyGradesCount = ArrayList(grades).toMutableList().count()
 
+    var indexInLopp = 0
 
+    var items = mutableListOf<CarouselItem>()
+    var indexFinalList = 0
+
+    while (copyGradesCount > indexInLopp)
+    {
+        var gradeCourse = ""
+        var numTotalGrade = 0
+        var sumTotalGrade = 0.0f
+
+        for(grade in copyGrades){
+
+            if(gradeCourse == ""){
+                gradeCourse = grade.course
+            }
+
+            if(grade.course == gradeCourse){
+                numTotalGrade++
+                sumTotalGrade += grade.note.toFloat()
+
+                indexInLopp++
+                copyGradesIterator.remove(grade)
+            }
+        }
+
+        copyGrades = copyGradesIterator
+
+        items.add(CarouselItem(indexFinalList.toInt(), (sumTotalGrade/numTotalGrade).toFloat(), gradeCourse.toString()));
+        indexFinalList++
+    }
 
     Column(){
         HorizontalMultiBrowseCarousel(
@@ -132,7 +169,7 @@ fun MainScreen(onEditGradeClick: () -> Unit){
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) { index ->
             val item = items[index]
-            Block(grade = item.grade, modifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge).fillMaxWidth(), "Web")
+            Block(grade = item.grade, modifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge).fillMaxWidth(), item.title)
         }
 
         TitleSection("Moyennes")
