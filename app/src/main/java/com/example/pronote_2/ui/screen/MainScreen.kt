@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -162,7 +163,27 @@ fun MainScreen(onEditGradeClick: () -> Unit){
 
         TitleSection("Dernières notes")
 
-        SimpleLazyColumn(onEditGradeClick = onEditGradeClick, ArrayList(grades))
+        SimpleLazyColumn(
+            onEditGradeClick = onEditGradeClick,
+            grades = ArrayList(grades),
+            onDeleteGrade = { gradeId ->
+                scope.launch {
+                    isLoading = true
+                    ApiService.deleteGrade(gradeId).onSuccess {
+                        // Rafraîchir la liste après suppression
+                        ApiService.getAllGrades().onSuccess {
+                            grades = it
+                            Toast.makeText(context, "Note supprimée avec succès", Toast.LENGTH_SHORT).show()
+                        }.onFailure {
+                            Toast.makeText(context, "Erreur lors du rafraîchissement", Toast.LENGTH_SHORT).show()
+                        }
+                    }.onFailure { error ->
+                        Toast.makeText(context, "Erreur: ${error.message}", Toast.LENGTH_SHORT).show()
+                    }
+                    isLoading = false
+                }
+            }
+        )
 
     }
 }
@@ -218,43 +239,44 @@ fun Block(grade: Float, modifier: Modifier = Modifier, module: String?){
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
-fun AverageGradeList(onEditGradeClick: () -> Unit, copyOfGrades : ArrayList<Grade>){
-
+fun AverageGradeList(
+    onEditGradeClick: () -> Unit,
+    grade: Grade,
+    onDeleteGrade: (String) -> Unit
+) {
     Row(
         horizontalArrangement = Arrangement.Absolute.Right,
         modifier = Modifier
             .fillMaxWidth()
-
     ) {
-        Row(
-        ) {
+        Row {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(25.dp),
                 modifier = Modifier
                     .padding(vertical = 10.dp)
                     .padding(end = 25.dp)
             ) {
-                Block(copyOfGrades.first().note.toFloat(), modifier = Modifier.size(75.dp), null)
+                Block(grade.note.toFloat(), modifier = Modifier.size(75.dp), null)
                 Column(
                     modifier = Modifier
                         .padding(end = 10.dp)
                 ) {
-                    Text(copyOfGrades.first().title)
-                    Text("Dernière note enregistrée : " + copyOfGrades.first().note)
-                    Text("Le " + convertISOToDate(copyOfGrades.first().date))
+                    Text(grade.title)
+                    Text("Dernière note enregistrée : " + grade.note)
+                    Text("Le " + convertISOToDate(grade.date))
                 }
             }
 
-            copyOfGrades.removeFirst()
-
-            MinimalDropdownMenu(onEditGradeClick =  onEditGradeClick)
+            MinimalDropdownMenu(
+                onEditGradeClick = onEditGradeClick,
+                onDeleteGradeClick = {
+                    grade._id?.let { onDeleteGrade(it) }
+                }
+            )
         }
-
     }
 
     HorizontalDivider(thickness = 1.dp, modifier = Modifier.padding(horizontal = 10.dp))
-
-
 }
 
 @Composable
@@ -270,12 +292,12 @@ fun TitleSection(title: String){
 
 @Composable
 fun MinimalDropdownMenu(
-    onEditGradeClick: () -> Unit
+    onEditGradeClick: () -> Unit,
+    onDeleteGradeClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     Box {
-
         IconButton(onClick = { expanded = !expanded }) {
             Icon(Icons.Default.MoreVert, contentDescription = "More options")
         }
@@ -285,11 +307,17 @@ fun MinimalDropdownMenu(
         ) {
             DropdownMenuItem(
                 text = { Text("Modifier") },
-                onClick = { onEditGradeClick() }
+                onClick = {
+                    expanded = false
+                    onEditGradeClick()
+                }
             )
             DropdownMenuItem(
                 text = { Text("Supprimer") },
-                onClick = { /* Do something... */ }
+                onClick = {
+                    expanded = false
+                    onDeleteGradeClick()
+                }
             )
         }
     }
@@ -297,14 +325,20 @@ fun MinimalDropdownMenu(
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
-fun SimpleLazyColumn(onEditGradeClick : () -> Unit, grades: ArrayList<Grade> )
-{
-    var copyOfGrades = grades
-
+fun SimpleLazyColumn(
+    onEditGradeClick: () -> Unit,
+    grades: ArrayList<Grade>,
+    onDeleteGrade: (String) -> Unit
+) {
     LazyColumn() {
-        items(grades.count())
-        {
-            AverageGradeList(onEditGradeClick = onEditGradeClick, copyOfGrades)
+        items(grades.count()) { index ->
+            if (index < grades.size) {
+                AverageGradeList(
+                    onEditGradeClick = onEditGradeClick,
+                    grade = grades[index],
+                    onDeleteGrade = onDeleteGrade
+                )
+            }
         }
     }
 }
