@@ -1,6 +1,9 @@
 package com.example.pronote_2.ui.screen
 
 import android.os.Build
+import kotlin.collections.mapIndexed
+import kotlin.collections.groupBy
+import androidx.compose.runtime.derivedStateOf
 import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.annotation.RequiresApi
@@ -65,7 +68,6 @@ import com.example.pronote_2.ui.AddingGrade
 import com.example.pronote_2.ui.EditingGrade
 import com.example.pronote_2.ui.Main
 import com.example.pronote_2.ui.ProNote2NavHost
-import org.w3c.dom.Text
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,8 +79,8 @@ fun MainScreen(onEditGradeClick: () -> Unit){
         val title: String,
     )
 
-    /*
-    val items =
+
+    /*val items =
         mutableListOf(
             CarouselItem(1, 5.0f, "donut"),
             CarouselItem(1, 3.0f,"donut"),
@@ -88,7 +90,6 @@ fun MainScreen(onEditGradeClick: () -> Unit){
         )
 
      */
-
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -120,46 +121,33 @@ fun MainScreen(onEditGradeClick: () -> Unit){
             isLoadingGrades = false
         }
     }
-    
-    var copyGrades = ArrayList(grades).toMutableList()
-    val copyGradesIterator = ArrayList(grades).toMutableList()
-    val copyGradesCount = ArrayList(grades).toMutableList().count()
 
-    var indexInLopp = 0
+    val carouselItems by remember {
+        derivedStateOf {
+            grades
+                .groupBy { it.course }
+                .entries
+                .mapIndexed { index, entry ->
+                    val course = entry.key
+                    val courseGrades = entry.value
 
-    var items = mutableListOf<CarouselItem>()
-    var indexFinalList = 0
+                    val average = courseGrades
+                        .map { it.note.toFloat() }
+                        .average()
+                        .toFloat()
 
-    while (copyGradesCount > indexInLopp)
-    {
-        var gradeCourse = ""
-        var numTotalGrade = 0
-        var sumTotalGrade = 0.0f
-
-        for(grade in copyGrades){
-
-            if(gradeCourse == ""){
-                gradeCourse = grade.course
-            }
-
-            if(grade.course == gradeCourse){
-                numTotalGrade++
-                sumTotalGrade += grade.note.toFloat()
-
-                indexInLopp++
-                copyGradesIterator.remove(grade)
-            }
+                    CarouselItem(
+                        id = index,
+                        grade = average,
+                        title = course
+                    )
+                }
         }
-
-        copyGrades = copyGradesIterator
-
-        items.add(CarouselItem(indexFinalList.toInt(), (sumTotalGrade/numTotalGrade).toFloat(), gradeCourse.toString()));
-        indexFinalList++
     }
 
     Column(){
         HorizontalMultiBrowseCarousel(
-            state = rememberCarouselState {items.count()},
+            state = rememberCarouselState {carouselItems.count()},
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
@@ -168,11 +156,11 @@ fun MainScreen(onEditGradeClick: () -> Unit){
             itemSpacing = 8.dp,
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) { index ->
-            val item = items[index]
+            val item = carouselItems[index]
             Block(grade = item.grade, modifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge).fillMaxWidth(), item.title)
         }
 
-        TitleSection("Moyennes")
+        TitleSection("Dernières notes")
 
         SimpleLazyColumn(onEditGradeClick = onEditGradeClick, ArrayList(grades))
 
