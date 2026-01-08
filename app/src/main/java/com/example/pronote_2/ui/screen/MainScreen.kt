@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -112,14 +113,35 @@ fun MainScreen(onEditGradeClick: () -> Unit){
     var testMenuExpanded by remember { mutableStateOf(false) }
     var semesterMenuExpanded by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        isLoadingGrades = true
-        ApiService.getAllGrades().onSuccess {
-            grades = it
-            isLoadingGrades = false
-        }.onFailure {
-            isLoadingGrades = false
+    // Fonction pour charger les grades
+    fun loadGrades() {
+        scope.launch {
+            isLoadingGrades = true
+            ApiService.getAllGrades().onSuccess {
+                grades = it
+                isLoadingGrades = false
+            }.onFailure {
+                isLoadingGrades = false
+                Toast.makeText(context, "Erreur lors du chargement des notes", Toast.LENGTH_SHORT).show()
+            }
         }
+    }
+
+    // Fonction pour supprimer un grade
+    fun deleteGrade(gradeId: String?) {
+        if (gradeId == null) return
+        scope.launch {
+            ApiService.deleteGrade(gradeId).onSuccess {
+                Toast.makeText(context, "Note supprimée avec succès", Toast.LENGTH_SHORT).show()
+                loadGrades() // Recharger la liste après suppression
+            }.onFailure {
+                Toast.makeText(context, "Erreur lors de la suppression", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        loadGrades()
     }
 
     val carouselItems by remember {
@@ -162,7 +184,11 @@ fun MainScreen(onEditGradeClick: () -> Unit){
 
         TitleSection("Dernières notes")
 
-        SimpleLazyColumn(onEditGradeClick = onEditGradeClick, ArrayList(grades))
+        SimpleLazyColumn(
+            onEditGradeClick = onEditGradeClick, 
+            grades = ArrayList(grades),
+            onDeleteGrade = { gradeId -> deleteGrade(gradeId) }
+        )
 
     }
 }
@@ -218,8 +244,11 @@ fun Block(grade: Float, modifier: Modifier = Modifier, module: String?){
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
-fun AverageGradeList(onEditGradeClick: () -> Unit, copyOfGrades : ArrayList<Grade>){
-
+fun AverageGradeList(
+    onEditGradeClick: () -> Unit, 
+    grade: Grade,
+    onDeleteGrade: (String?) -> Unit
+){
     Row(
         horizontalArrangement = Arrangement.Absolute.Right,
         modifier = Modifier
@@ -234,20 +263,21 @@ fun AverageGradeList(onEditGradeClick: () -> Unit, copyOfGrades : ArrayList<Grad
                     .padding(vertical = 10.dp)
                     .padding(end = 25.dp)
             ) {
-                Block(copyOfGrades.first().note.toFloat(), modifier = Modifier.size(75.dp), null)
+                Block(grade.note.toFloat(), modifier = Modifier.size(75.dp), null)
                 Column(
                     modifier = Modifier
                         .padding(end = 10.dp)
                 ) {
-                    Text(copyOfGrades.first().title)
-                    Text("Dernière note enregistrée : " + copyOfGrades.first().note)
-                    Text("Le " + convertISOToDate(copyOfGrades.first().date))
+                    Text(grade.title)
+                    Text("Dernière note enregistrée : " + grade.note)
+                    Text("Le " + convertISOToDate(grade.date))
                 }
             }
 
-            copyOfGrades.removeFirst()
-
-            MinimalDropdownMenu(onEditGradeClick =  onEditGradeClick)
+            MinimalDropdownMenu(
+                onEditGradeClick = onEditGradeClick,
+                onDeleteClick = { onDeleteGrade(grade._id) }
+            )
         }
 
     }
@@ -270,7 +300,8 @@ fun TitleSection(title: String){
 
 @Composable
 fun MinimalDropdownMenu(
-    onEditGradeClick: () -> Unit
+    onEditGradeClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -285,11 +316,17 @@ fun MinimalDropdownMenu(
         ) {
             DropdownMenuItem(
                 text = { Text("Modifier") },
-                onClick = { onEditGradeClick() }
+                onClick = { 
+                    expanded = false
+                    onEditGradeClick() 
+                }
             )
             DropdownMenuItem(
                 text = { Text("Supprimer") },
-                onClick = { /* Do something... */ }
+                onClick = { 
+                    expanded = false
+                    onDeleteClick() 
+                }
             )
         }
     }
@@ -297,14 +334,29 @@ fun MinimalDropdownMenu(
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
-fun SimpleLazyColumn(onEditGradeClick : () -> Unit, grades: ArrayList<Grade> )
-{
-    var copyOfGrades = grades
-
+fun SimpleLazyColumn(
+    onEditGradeClick : () -> Unit, 
+    grades: ArrayList<Grade>,
+    onDeleteGrade: (String?) -> Unit
+) {
     LazyColumn() {
-        items(grades.count())
-        {
-            AverageGradeList(onEditGradeClick = onEditGradeClick, copyOfGrades)
+        items(grades.size) { index ->
+            AverageGradeList(
+                onEditGradeClick = onEditGradeClick, 
+                grade = grades[index],
+                onDeleteGrade = onDeleteGrade
+            )
         }
+    }
+}
+
+// Fonction utilitaire pour convertir une date ISO en format lisible
+fun convertISOToDate(isoDate: String): String {
+    return try {
+        val date = java.time.Instant.parse(isoDate)
+        val localDate = java.time.LocalDateTime.ofInstant(date, java.time.ZoneId.systemDefault())
+        "${localDate.dayOfMonth} / ${localDate.monthValue} / ${localDate.year}"
+    } catch (e: Exception) {
+        isoDate // Retourner la date originale en cas d'erreur
     }
 }
