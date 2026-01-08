@@ -84,4 +84,22 @@ object ApiService {
             Result.failure(Exception("Erreur: ${e.message ?: "Erreur inconnue"}"))
         }
     }
+    
+    suspend fun deleteGrade(id: String): Result<Unit> {
+        return try {
+            val response: GradeResponse = client.delete("$BASE_URL/$id").body()
+            if (response.success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception(response.message ?: "Erreur lors de la suppression"))
+            }
+        } catch (e: UnknownHostException) {
+            Result.failure(Exception("Impossible de se connecter au serveur. Vérifiez que le serveur est démarré."))
+        } catch (e: ConnectException) {
+            Result.failure(Exception("Connexion refusée. Vérifiez l'URL du serveur."))
+        } catch (e: Exception) {
+            Result.failure(Exception("Erreur: ${e.message ?: "Erreur inconnue"}"))
+        }
+    }
 }
+ 
