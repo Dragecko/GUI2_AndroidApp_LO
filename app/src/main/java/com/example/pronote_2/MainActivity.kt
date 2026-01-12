@@ -89,7 +89,7 @@ fun GreetingPreview() {
 fun ProNote2TopAppBar(name: String) {
     CenterAlignedTopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            //containerColor = MaterialTheme.colorScheme.primaryContainer,
             titleContentColor = MaterialTheme.colorScheme.primary,
         ),
         title = {
@@ -124,7 +124,7 @@ fun ProNote2BottomAppBar(
             Icon(
                 imageVector = Icons.Filled.Home, contentDescription = null
             )
-        }, label = { Text(text = "Home") })
+        }, label = { Text(text = "Notes") })
         NavigationBarItem(selected = currentDestination?.route == AddingGrade::class.qualifiedName, onClick = { onAddingGradeClick() }, icon = {
             Icon(
                 imageVector = Icons.Filled.Add, contentDescription = null

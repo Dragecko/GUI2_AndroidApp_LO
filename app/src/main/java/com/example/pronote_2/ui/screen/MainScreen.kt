@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -58,6 +59,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -152,13 +154,14 @@ fun MainScreen(onEditGradeClick: () -> Unit){
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
-                .padding(top = 16.dp, bottom = 16.dp),
-            preferredItemWidth = 186.dp,
+                .padding(top = 16.dp, bottom = 16.dp)
+                .align(alignment = Alignment.CenterHorizontally),
+            preferredItemWidth = 150.dp,
             itemSpacing = 8.dp,
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) { index ->
             val item = carouselItems[index]
-            Block(grade = item.grade, modifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge).fillMaxWidth(), item.title)
+            Block(grade = item.grade, modifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge).fillMaxWidth().align(Alignment.CenterHorizontally), item.title)
         }
 
         TitleSection("Dernières notes")
@@ -219,17 +222,32 @@ fun Block(grade: Float, modifier: Modifier = Modifier, module: String?){
         },
         contentAlignment = Alignment.Center
     ) {
-        Column() {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
             if (module != null){
-                Text(
-                    text = module,
-                    textAlign = TextAlign.Center,
-                    color = Color.White
-                )
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .widthIn(max = 120.dp)
+                ) {
+                    Text(
+                        text = module,
+                        textAlign = TextAlign.Center,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 2,
+                        fontSize = 15.sp,
+                        color = Color.White
+
+                    )
+                }
             }
             Text(
                 text = grade.toString(),
                 textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+                fontSize = 25.sp,
                 color = Color.White
             )
         }
@@ -254,15 +272,23 @@ fun AverageGradeList(
                 horizontalArrangement = Arrangement.spacedBy(25.dp),
                 modifier = Modifier
                     .padding(vertical = 10.dp)
-                    .padding(end = 25.dp)
             ) {
                 Block(grade.note.toFloat(), modifier = Modifier.size(75.dp), null)
                 Column(
                     modifier = Modifier
                         .padding(end = 10.dp)
+                        .widthIn(min = 240.dp, max = 240.dp)
                 ) {
-                    Text(grade.title)
-                    Text("Dernière note enregistrée : " + grade.note)
+                    Text(
+                        text = grade.course,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = grade.title,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1
+                    )
                     Text("Le " + convertISOToDate(grade.date))
                 }
             }
