@@ -116,7 +116,7 @@ fun EditingGradeScreen(
             CircularProgressIndicator(modifier = Modifier.padding(16.dp))
         } else {
             GradeSelectionDropdown(
-                label = "Sélectionner une note a modifier",
+                label = "Sélectionner une note à modifier",
                 grades = grades,
                 selectedGradeId = selectedGradeId,
                 onGradeSelected = { id ->
